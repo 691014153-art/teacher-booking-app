@@ -122,7 +122,10 @@ export function TimeManagement() {
     setManualEndTime('11:00')
   }
 
-  const getBookedDate = (booking: { createdAt: Date }, slot: { dayOfWeek?: number }) => {
+  const getBookedDate = (booking: { createdAt: Date; bookedDate?: string }, slot: { dayOfWeek?: number }) => {
+    if (booking.bookedDate) {
+      return new Date(booking.bookedDate + 'T00:00:00')
+    }
     const created = new Date(booking.createdAt)
     created.setHours(0, 0, 0, 0)
     const targetDay = slot.dayOfWeek ?? 0

@@ -6,6 +6,9 @@ import { getDayName, formatDateShort } from '@/lib/data'
 import { cn } from '@/lib/utils'
 
 function getBookedDate(booking: Booking, slot: TimeSlot): Date {
+  if (booking.bookedDate) {
+    return new Date(booking.bookedDate + 'T00:00:00')
+  }
   const created = new Date(booking.createdAt)
   created.setHours(0, 0, 0, 0)
   const targetDay = slot.dayOfWeek ?? 0
@@ -219,6 +222,16 @@ interface DayViewProps {
 }
 
 export function DayView({ date, slots, selectableSlots, selectedSlots, onToggleSlot, mode }: DayViewProps) {
+  const getSlotKey = (slot: TimeSlot) => {
+    if (slot.isRecurring) {
+      const y = date.getFullYear()
+      const m = String(date.getMonth() + 1).padStart(2, '0')
+      const d = String(date.getDate()).padStart(2, '0')
+      return `${slot.id}__${y}-${m}-${d}`
+    }
+    return slot.id
+  }
+
   return (
     <div className="space-y-2">
       <h4 className="font-medium text-muted-foreground">
@@ -234,19 +247,20 @@ export function DayView({ date, slots, selectableSlots, selectedSlots, onToggleS
           {slots.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()).map(slot => {
             const start = new Date(slot.startTime)
             const end = new Date(slot.endTime)
-            const isSelectable = selectableSlots?.has(slot.id) ?? true
-            const isSelected = selectedSlots?.has(slot.id) ?? false
+            const key = getSlotKey(slot)
+            const isSelectable = selectableSlots ? selectableSlots.has(slot.id) || selectableSlots.has(key) : true
+            const isSelected = selectedSlots?.has(key) ?? false
             
             return (
               <div
-                key={slot.id}
+                key={key}
                 className={cn(
                   "flex items-center justify-between p-3 rounded-lg border transition-all",
                   isSelected && "bg-primary/10 border-primary",
                   !isSelectable && "opacity-50",
                   mode === 'parent' && isSelectable && "cursor-pointer hover:border-primary/50"
                 )}
-                onClick={() => mode === 'parent' && isSelectable && onToggleSlot?.(slot.id)}
+                onClick={() => mode === 'parent' && isSelectable && onToggleSlot?.(key)}
               >
                 <div>
                   <div className="font-medium">

@@ -18,6 +18,7 @@ export interface CourseType {
 export interface Booking {
   id: string
   slotId: string
+  bookedDate?: string // "YYYY-MM-DD" for recurring slots
   parentName: string
   parentPhone: string
   studentName: string

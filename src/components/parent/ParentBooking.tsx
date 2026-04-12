@@ -260,17 +260,22 @@ export function ParentBooking() {
 
   const availableSlots = getAvailableSlots()
 
+  const getBookedDateForBooking = (b: Booking, slot: TimeSlot): Date => {
+    if (b.bookedDate) return new Date(b.bookedDate + 'T00:00:00')
+    const created = new Date(b.createdAt)
+    created.setHours(0, 0, 0, 0)
+    const targetDay = slot.dayOfWeek ?? 0
+    const diff = (targetDay - created.getDay() + 7) % 7
+    const result = new Date(created)
+    result.setDate(result.getDate() + diff)
+    return result
+  }
+
   const isRecurringSlotBookedOnDate = (slot: TimeSlot, date: Date) => {
     if (!slot.isRecurring) return false
     return bookings.some(b => {
       if (b.slotId !== slot.id || b.status === 'rejected') return false
-      const created = new Date(b.createdAt)
-      created.setHours(0, 0, 0, 0)
-      const targetDay = slot.dayOfWeek ?? 0
-      const diff = (targetDay - created.getDay() + 7) % 7
-      const bookedDate = new Date(created)
-      bookedDate.setDate(bookedDate.getDate() + diff)
-      return bookedDate.toDateString() === date.toDateString()
+      return getBookedDateForBooking(b, slot).toDateString() === date.toDateString()
     })
   }
 
@@ -288,13 +293,7 @@ export function ParentBooking() {
       const slot = timeSlots.find(s => s.id === booking.slotId)
       if (!slot) return false
       if (slot.isRecurring) {
-        const created = new Date(booking.createdAt)
-        created.setHours(0, 0, 0, 0)
-        const targetDay = slot.dayOfWeek ?? 0
-        const diff = (targetDay - created.getDay() + 7) % 7
-        const bookedDate = new Date(created)
-        bookedDate.setDate(bookedDate.getDate() + diff)
-        return bookedDate.toDateString() === date.toDateString()
+        return getBookedDateForBooking(booking, slot).toDateString() === date.toDateString()
       }
       return new Date(slot.startTime).toDateString() === date.toDateString()
     })
@@ -330,17 +329,23 @@ export function ParentBooking() {
 
     const generateId = () => crypto.randomUUID()
 
-    const createdBookings: Booking[] = Array.from(selectedSlots).map(slotId => ({
-      id: generateId(),
-      slotId,
-      parentName: formData.parentName,
-      parentPhone: formData.parentPhone,
-      studentName: formData.studentName,
-      courseTypeId: formData.courseTypeId,
-      notes: formData.notes,
-      status: 'pending' as const,
-      createdAt: new Date()
-    }))
+    const createdBookings: Booking[] = Array.from(selectedSlots).map(key => {
+      const parts = key.split('__')
+      const slotId = parts[0]
+      const bookedDate = parts.length > 1 ? parts[1] : undefined
+      return {
+        id: generateId(),
+        slotId,
+        bookedDate,
+        parentName: formData.parentName,
+        parentPhone: formData.parentPhone,
+        studentName: formData.studentName,
+        courseTypeId: formData.courseTypeId,
+        notes: formData.notes,
+        status: 'pending' as const,
+        createdAt: new Date()
+      }
+    })
 
     if (supabaseEnabled && effectiveTeacherId) {
       const { ok, error } = await createBookingsRemote(effectiveTeacherId, createdBookings)
@@ -371,12 +376,20 @@ export function ParentBooking() {
     alert('预约链接已复制！请发送给老师，老师点击后即可看到您的预约。')
   }
 
-  const getSlotTime = (slotId: string) => {
+  const getSlotTime = (key: string) => {
+    const parts = key.split('__')
+    const slotId = parts[0]
+    const dateStr = parts[1]
     const slot = timeSlots.find(s => s.id === slotId)
     if (!slot) return ''
     const start = new Date(slot.startTime)
     const end = new Date(slot.endTime)
-    return `${start.getMonth() + 1}月${start.getDate()}日 ${getDayName(start.getDay())} ${start.getHours()}:${start.getMinutes().toString().padStart(2, '0')}-${end.getHours()}:${end.getMinutes().toString().padStart(2, '0')}`
+    const timeStr = `${start.getHours()}:${start.getMinutes().toString().padStart(2, '0')}-${end.getHours()}:${end.getMinutes().toString().padStart(2, '0')}`
+    if (dateStr) {
+      const d = new Date(dateStr + 'T00:00:00')
+      return `${d.getMonth() + 1}月${d.getDate()}日 ${getDayName(d.getDay())} ${timeStr}`
+    }
+    return `${start.getMonth() + 1}月${start.getDate()}日 ${getDayName(start.getDay())} ${timeStr}`
   }
 
   if (isSuccess) {
