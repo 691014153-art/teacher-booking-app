@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,9 +8,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, DayView } from '@/components/Calendar'
 import { useApp } from '@/context/AppContext'
+import { isSupabaseConfigured } from '@/lib/supabase'
 import { TimeSlot } from '@/types'
 import { getDayName } from '@/lib/data'
-import { Plus, Trash2, Repeat, Clock, CalendarDays, BookOpen, CheckCircle } from 'lucide-react'
+import { Plus, Trash2, Repeat, Clock, CalendarDays, BookOpen, CheckCircle, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type ViewMode = 'calendar' | 'manual' | 'course'
@@ -27,9 +28,25 @@ function formatTimeDisplay(date: Date): string {
 }
 
 export function TimeManagement() {
-  const { timeSlots, addTimeSlot, removeTimeSlot, bookings, courseTypes } = useApp()
+  const { timeSlots, addTimeSlot, removeTimeSlot, bookings, courseTypes, refreshBookings } = useApp()
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [viewMode, setViewMode] = useState<ViewMode>('calendar')
+  const [refreshing, setRefreshing] = useState(false)
+
+  const supabaseEnabled = isSupabaseConfigured()
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true)
+    await refreshBookings()
+    setRefreshing(false)
+  }, [refreshBookings])
+
+  useEffect(() => {
+    if (!supabaseEnabled) return
+    void refreshBookings()
+    const interval = setInterval(() => { void refreshBookings() }, 15000)
+    return () => clearInterval(interval)
+  }, [supabaseEnabled, refreshBookings])
   
   // 手动添加时段
   const [manualDate, setManualDate] = useState('')
@@ -210,10 +227,17 @@ export function TimeManagement() {
           {/* 日历 */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="w-5 h-5 text-primary" />
-                时间安排总览
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-primary" />
+                  时间安排总览
+                </CardTitle>
+                {supabaseEnabled && (
+                  <Button variant="ghost" size="sm" onClick={handleRefresh} title="刷新预约数据">
+                    <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
+                  </Button>
+                )}
+              </div>
               <CardDescription>蓝色=空闲时间，绿色=已预约课程</CardDescription>
             </CardHeader>
             <CardContent>
