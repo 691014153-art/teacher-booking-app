@@ -105,29 +105,20 @@ export function TimeManagement() {
     setManualEndTime('11:00')
   }
 
-  // 获取某日期的所有时段（空闲+已预约）
+  // 获取某日期的所有时段（仅具体日期时段，不含循环时段）
   const getSlotsForSelectedDate = () => {
-    const dayOfWeek = selectedDate.getDay()
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    
     return timeSlots.filter(slot => {
-      // 循环时段：检查星期是否匹配，且日期不早于今天
-      if (slot.isRecurring) {
-        return slot.dayOfWeek === dayOfWeek && selectedDate >= today
-      }
-      
-      // 单次时段：检查日期是否匹配
+      if (slot.isRecurring) return false
       const slotDate = new Date(slot.startTime)
       return slotDate.toDateString() === selectedDate.toDateString()
     })
   }
 
-  // 获取某日期的已确认预约
+  // 获取某日期的已确认预约（仅具体日期时段的预约）
   const getBookingsForSelectedDate = () => {
     return bookings.filter(booking => {
       const slot = timeSlots.find(s => s.id === booking.slotId)
-      if (!slot) return false
+      if (!slot || slot.isRecurring) return false
       const slotDate = new Date(slot.startTime)
       return slotDate.toDateString() === selectedDate.toDateString() && booking.status === 'confirmed'
     })
