@@ -713,6 +713,7 @@ export function ParentBooking() {
                           const course = sub.bookingInfo && courseTypes.find(c => c.id === sub.bookingInfo!.courseTypeId)
                           const canCancel = (() => {
                             if (!sub.bookingInfo) return false
+                            if (sub.bookingInfo.status === 'pending') return true
                             const bDate = sub.bookingInfo.bookedDate
                             const bStart = sub.bookingInfo.bookedStartTime
                             if (!bDate || !bStart) return true
