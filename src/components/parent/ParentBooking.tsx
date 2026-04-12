@@ -242,10 +242,17 @@ export function ParentBooking() {
   })
 
   const getAvailableSlots = () => {
-    const bookedSlotIds = new Set(bookings.filter(b => b.status !== 'rejected').map(b => b.slotId))
+    const nonRecurringBookedIds = new Set(
+      bookings.filter(b => b.status !== 'rejected')
+        .filter(b => {
+          const slot = timeSlots.find(s => s.id === b.slotId)
+          return slot && !slot.isRecurring
+        })
+        .map(b => b.slotId)
+    )
     const now = new Date()
     return timeSlots.filter(slot => {
-      if (bookedSlotIds.has(slot.id)) return false
+      if (!slot.isRecurring && nonRecurringBookedIds.has(slot.id)) return false
       if (slot.isRecurring && slot.dayOfWeek !== undefined) return true
       return new Date(slot.startTime) >= now
     })
@@ -253,8 +260,26 @@ export function ParentBooking() {
 
   const availableSlots = getAvailableSlots()
 
+  const isRecurringSlotBookedOnDate = (slot: TimeSlot, date: Date) => {
+    if (!slot.isRecurring) return false
+    return bookings.some(b => {
+      if (b.slotId !== slot.id || b.status === 'rejected') return false
+      const created = new Date(b.createdAt)
+      created.setHours(0, 0, 0, 0)
+      const targetDay = slot.dayOfWeek ?? 0
+      const diff = (targetDay - created.getDay() + 7) % 7
+      const bookedDate = new Date(created)
+      bookedDate.setDate(bookedDate.getDate() + diff)
+      return bookedDate.toDateString() === date.toDateString()
+    })
+  }
+
   const getSlotsForDate = (date: Date) => {
-    return availableSlots.filter(slot => isSlotOnDate(slot, date))
+    return availableSlots.filter(slot => {
+      if (!isSlotOnDate(slot, date)) return false
+      if (slot.isRecurring && isRecurringSlotBookedOnDate(slot, date)) return false
+      return true
+    })
   }
 
   const getBookingsForDate = (date: Date) => {
