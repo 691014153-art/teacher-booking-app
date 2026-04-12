@@ -105,22 +105,41 @@ export function TimeManagement() {
     setManualEndTime('11:00')
   }
 
-  // 获取某日期的所有时段（仅具体日期时段，不含循环时段）
-  const getSlotsForSelectedDate = () => {
-    return timeSlots.filter(slot => {
-      if (slot.isRecurring) return false
-      const slotDate = new Date(slot.startTime)
-      return slotDate.toDateString() === selectedDate.toDateString()
-    })
+  const getBookedDate = (booking: { createdAt: Date }, slot: { dayOfWeek?: number }) => {
+    const created = new Date(booking.createdAt)
+    created.setHours(0, 0, 0, 0)
+    const targetDay = slot.dayOfWeek ?? 0
+    const diff = (targetDay - created.getDay() + 7) % 7
+    const result = new Date(created)
+    result.setDate(result.getDate() + diff)
+    return result
   }
 
-  // 获取某日期的已确认预约（仅具体日期时段的预约）
+  // 获取某日期的所有时段（具体日期 + 该日有预约的循环时段）
+  const getSlotsForSelectedDate = () => {
+    const nonRecurring = timeSlots.filter(slot => {
+      if (slot.isRecurring) return false
+      return new Date(slot.startTime).toDateString() === selectedDate.toDateString()
+    })
+    const bookedRecurring = timeSlots.filter(slot => {
+      if (!slot.isRecurring || slot.dayOfWeek !== selectedDate.getDay()) return false
+      return bookings.some(b => {
+        if (b.slotId !== slot.id || b.status === 'rejected') return false
+        return getBookedDate(b, slot).toDateString() === selectedDate.toDateString()
+      })
+    })
+    return [...nonRecurring, ...bookedRecurring]
+  }
+
+  // 获取某日期的已确认预约
   const getBookingsForSelectedDate = () => {
     return bookings.filter(booking => {
       const slot = timeSlots.find(s => s.id === booking.slotId)
-      if (!slot || slot.isRecurring) return false
-      const slotDate = new Date(slot.startTime)
-      return slotDate.toDateString() === selectedDate.toDateString() && booking.status === 'confirmed'
+      if (!slot) return false
+      if (slot.isRecurring) {
+        return getBookedDate(booking, slot).toDateString() === selectedDate.toDateString() && booking.status === 'confirmed'
+      }
+      return new Date(slot.startTime).toDateString() === selectedDate.toDateString() && booking.status === 'confirmed'
     })
   }
 

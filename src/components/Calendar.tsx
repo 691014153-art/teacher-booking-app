@@ -5,6 +5,16 @@ import { TimeSlot, Booking, CourseType } from '@/types'
 import { getDayName, formatDateShort } from '@/lib/data'
 import { cn } from '@/lib/utils'
 
+function getBookedDate(booking: Booking, slot: TimeSlot): Date {
+  const created = new Date(booking.createdAt)
+  created.setHours(0, 0, 0, 0)
+  const targetDay = slot.dayOfWeek ?? 0
+  const diff = (targetDay - created.getDay() + 7) % 7
+  const result = new Date(created)
+  result.setDate(result.getDate() + diff)
+  return result
+}
+
 interface CalendarProps {
   timeSlots: TimeSlot[]
   bookings?: Booking[]
@@ -53,16 +63,27 @@ export function Calendar({
     const dayOfWeek = date.getDay()
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    
-    return timeSlots.filter(slot => {
-      if (slot.isRecurring) {
-        if (mode === 'teacher') return false
-        return slot.dayOfWeek === dayOfWeek && date >= today
-      }
-      
-      const slotDate = new Date(slot.startTime)
-      return slotDate.toDateString() === date.toDateString()
+
+    const nonRecurring = timeSlots.filter(slot => {
+      if (slot.isRecurring) return false
+      return new Date(slot.startTime).toDateString() === date.toDateString()
     })
+
+    if (mode === 'teacher') {
+      const bookedRecurring = timeSlots.filter(slot => {
+        if (!slot.isRecurring || slot.dayOfWeek !== dayOfWeek) return false
+        return bookings?.some(b => {
+          if (b.slotId !== slot.id || b.status === 'rejected') return false
+          return getBookedDate(b, slot).toDateString() === date.toDateString()
+        })
+      })
+      return [...nonRecurring, ...bookedRecurring]
+    }
+
+    const recurring = timeSlots.filter(slot =>
+      slot.isRecurring && slot.dayOfWeek === dayOfWeek && date >= today
+    )
+    return [...nonRecurring, ...recurring]
   }
 
   const renderMonthView = () => {
