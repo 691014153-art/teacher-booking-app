@@ -220,7 +220,7 @@ function BookingStatusPolling({ bookingIds, bookings: initialBookings }: { booki
 export function ParentBooking() {
   const mode = getModeFromUrl()
   const isParentOnly = mode === 'parent'
-  const { timeSlots, courseTypes, teacher, teacherId, addBooking, bookings } = useApp()
+  const { timeSlots, courseTypes, teacher, teacherId, addBooking, bookings, cancelBooking } = useApp()
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [selectedSlots, setSelectedSlots] = useState<Set<string>>(new Set())
   const [showForm, setShowForm] = useState(false)
@@ -711,6 +711,14 @@ export function ParentBooking() {
                       <div className="space-y-1.5">
                         {bookedSubs.map(sub => {
                           const course = sub.bookingInfo && courseTypes.find(c => c.id === sub.bookingInfo!.courseTypeId)
+                          const canCancel = (() => {
+                            if (!sub.bookingInfo) return false
+                            const bDate = sub.bookingInfo.bookedDate
+                            const bStart = sub.bookingInfo.bookedStartTime
+                            if (!bDate || !bStart) return true
+                            const lessonTime = new Date(`${bDate}T${bStart}:00`)
+                            return lessonTime.getTime() - Date.now() > 24 * 60 * 60 * 1000
+                          })()
                           return (
                             <div key={sub.key} className="flex items-center justify-between p-2.5 rounded-lg bg-success/10 border border-success/20">
                               <div>
@@ -721,9 +729,24 @@ export function ParentBooking() {
                                   </span>
                                 )}
                               </div>
-                              <Badge variant={sub.bookingInfo?.status === 'confirmed' ? 'success' : 'accent'} className="text-[10px]">
-                                {sub.bookingInfo?.status === 'confirmed' ? '已确认' : '待确认'}
-                              </Badge>
+                              <div className="flex items-center gap-1.5">
+                                <Badge variant={sub.bookingInfo?.status === 'confirmed' ? 'success' : 'accent'} className="text-[10px]">
+                                  {sub.bookingInfo?.status === 'confirmed' ? '已确认' : '待确认'}
+                                </Badge>
+                                {sub.bookingInfo && canCancel && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => { if (confirm('确定要取消这个预约吗？')) cancelBooking(sub.bookingInfo!.id) }}
+                                    className="h-6 px-1.5 text-[10px] text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  >
+                                    取消
+                                  </Button>
+                                )}
+                                {sub.bookingInfo && !canCancel && (
+                                  <span className="text-[10px] text-muted-foreground">24h内不可取消</span>
+                                )}
+                              </div>
                             </div>
                           )
                         })}

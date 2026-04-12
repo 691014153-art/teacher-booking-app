@@ -28,7 +28,7 @@ function formatTimeDisplay(date: Date): string {
 }
 
 export function TimeManagement() {
-  const { timeSlots, addTimeSlot, removeTimeSlot, bookings, courseTypes, refreshBookings } = useApp()
+  const { timeSlots, addTimeSlot, removeTimeSlot, bookings, courseTypes, refreshBookings, cancelBooking } = useApp()
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [viewMode, setViewMode] = useState<ViewMode>('calendar')
   const [refreshing, setRefreshing] = useState(false)
@@ -297,9 +297,20 @@ export function TimeManagement() {
                               <span>课程: {course?.name || '未知'}</span>
                             </div>
                           </div>
-                          <Badge variant={booking.status === 'confirmed' ? 'success' : 'accent'}>
-                            {booking.status === 'confirmed' ? '已确认' : '待确认'}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={booking.status === 'confirmed' ? 'success' : 'accent'}>
+                              {booking.status === 'confirmed' ? '已确认' : '待确认'}
+                            </Badge>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => { if (confirm('确定要取消这个预约吗？')) cancelBooking(booking.id) }}
+                              className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              title="取消预约"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
                         </div>
                       )
                     })}

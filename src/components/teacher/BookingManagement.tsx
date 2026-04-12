@@ -7,13 +7,13 @@ import { useApp } from '@/context/AppContext'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { getStatusLabel, getStatusVariant } from '@/lib/data'
 import { formatDateTime } from '@/lib/utils'
-import { Bell, Check, X, Clock, User, Phone, BookOpen, MessageSquare, RefreshCw } from 'lucide-react'
+import { Bell, Check, X, Clock, User, Phone, BookOpen, MessageSquare, RefreshCw, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type FilterStatus = 'all' | 'pending' | 'confirmed' | 'rejected'
 
 export function BookingManagement() {
-  const { bookings, timeSlots, courseTypes, updateBookingStatus, refreshBookings } = useApp()
+  const { bookings, timeSlots, courseTypes, updateBookingStatus, cancelBooking, refreshBookings } = useApp()
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [refreshing, setRefreshing] = useState(false)
@@ -237,28 +237,41 @@ export function BookingManagement() {
                       </div>
                     )}
                     
-                    {booking.status === 'pending' && (
-                      <div className="flex gap-2">
+                    <div className="flex gap-2">
+                      {booking.status === 'pending' && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="success"
+                            onClick={() => updateBookingStatus(booking.id, 'confirmed')}
+                            className="flex items-center gap-1"
+                          >
+                            <Check className="w-4 h-4" />
+                            确认
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => updateBookingStatus(booking.id, 'rejected')}
+                            className="flex items-center gap-1"
+                          >
+                            <X className="w-4 h-4" />
+                            拒绝
+                          </Button>
+                        </>
+                      )}
+                      {booking.status !== 'rejected' && (
                         <Button
                           size="sm"
-                          variant="success"
-                          onClick={() => updateBookingStatus(booking.id, 'confirmed')}
-                          className="flex items-center gap-1"
+                          variant="outline"
+                          onClick={() => { if (confirm('确定要取消这个预约吗？')) cancelBooking(booking.id) }}
+                          className="flex items-center gap-1 text-destructive hover:text-destructive"
                         >
-                          <Check className="w-4 h-4" />
-                          确认
+                          <Trash2 className="w-4 h-4" />
+                          取消预约
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => updateBookingStatus(booking.id, 'rejected')}
-                          className="flex items-center gap-1"
-                        >
-                          <X className="w-4 h-4" />
-                          拒绝
-                        </Button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardContent>

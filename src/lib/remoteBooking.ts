@@ -105,6 +105,23 @@ export async function updateBookingStatusRemote(
   return { ok: true }
 }
 
+export async function deleteBookingRemote(
+  bookingId: string
+): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseConfigured()) return { ok: false, error: '未配置 Supabase' }
+
+  const { error } = await supabase
+    .from(TABLE)
+    .delete()
+    .eq('id', bookingId)
+
+  if (error) {
+    console.warn('[Supabase] 删除预约失败:', error)
+    return { ok: false, error: error.message }
+  }
+  return { ok: true }
+}
+
 export async function fetchBookingsByIdsRemote(ids: string[]): Promise<Booking[]> {
   if (!isSupabaseConfigured() || ids.length === 0) return []
 

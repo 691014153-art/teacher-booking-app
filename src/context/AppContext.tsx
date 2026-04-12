@@ -4,7 +4,7 @@ import { getDataFromUrl, getBookingFromUrl, stripImportedBookingFromUrl, DataPac
 import { getTeacherIdFromUrl } from '@/lib/urlParams'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { fetchTeacherScheduleRemote, upsertTeacherScheduleRemote } from '@/lib/remoteSchedule'
-import { fetchBookingsRemote, updateBookingStatusRemote, createBookingsRemote } from '@/lib/remoteBooking'
+import { fetchBookingsRemote, updateBookingStatusRemote, createBookingsRemote, deleteBookingRemote } from '@/lib/remoteBooking'
 import { tryConsumeScheduleFileImportForTeacher } from '@/lib/scheduleFile'
 
 // 生成UUID
@@ -101,6 +101,7 @@ interface AppState {
   removeTimeSlot: (id: string) => void
   addBooking: (booking: Omit<Booking, 'id' | 'createdAt' | 'status'>) => void
   updateBookingStatus: (id: string, status: Booking['status']) => void
+  cancelBooking: (id: string) => void
   addCourseType: (courseType: Omit<CourseType, 'id'>) => void
   removeCourseType: (id: string) => void
   updateCourseType: (id: string, updates: Partial<CourseType>) => void
@@ -359,6 +360,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const cancelBooking = (id: string) => {
+    setBookings(prev => prev.filter(b => b.id !== id))
+    if (isSupabaseConfigured()) {
+      void deleteBookingRemote(id)
+    }
+  }
+
   const addCourseType = (courseType: Omit<CourseType, 'id'>) => {
     const newCourse: CourseType = { ...courseType, id: generateId() }
     setCourseTypes(prev => [...prev, newCourse])
@@ -418,6 +426,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       removeTimeSlot,
       addBooking,
       updateBookingStatus,
+      cancelBooking,
       addCourseType,
       removeCourseType,
       updateCourseType,
