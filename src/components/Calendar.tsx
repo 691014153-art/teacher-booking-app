@@ -129,7 +129,13 @@ export function Calendar({
               const startStr = `${startTime.getHours().toString().padStart(2, '0')}:${startTime.getMinutes().toString().padStart(2, '0')}`
               const endStr = `${endTime.getHours().toString().padStart(2, '0')}:${endTime.getMinutes().toString().padStart(2, '0')}`
               
-              const booking = bookings?.find(b => b.slotId === slot.id && b.status !== 'rejected')
+              const booking = bookings?.find(b => {
+                if (b.slotId !== slot.id || b.status === 'rejected') return false
+                if (slot.isRecurring) {
+                  return getBookedDate(b, slot).toDateString() === date.toDateString()
+                }
+                return true
+              })
               const course = booking && courseTypes?.find(c => c.id === booking.courseTypeId)
               const isBooked = !!booking
 
