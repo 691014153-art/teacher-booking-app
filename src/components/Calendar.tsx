@@ -69,21 +69,15 @@ export function Calendar({
       return new Date(slot.startTime).toDateString() === date.toDateString()
     })
 
-    if (mode === 'teacher') {
-      const bookedRecurring = timeSlots.filter(slot => {
-        if (!slot.isRecurring || slot.dayOfWeek !== dayOfWeek) return false
-        return bookings?.some(b => {
-          if (b.slotId !== slot.id || b.status === 'rejected') return false
-          return getBookedDate(b, slot).toDateString() === date.toDateString()
-        })
+    const bookedRecurring = timeSlots.filter(slot => {
+      if (!slot.isRecurring || slot.dayOfWeek !== dayOfWeek) return false
+      return bookings?.some(b => {
+        if (b.slotId !== slot.id || b.status === 'rejected') return false
+        return getBookedDate(b, slot).toDateString() === date.toDateString()
       })
-      return [...nonRecurring, ...bookedRecurring]
-    }
+    })
 
-    const recurring = timeSlots.filter(slot =>
-      slot.isRecurring && slot.dayOfWeek === dayOfWeek && date >= today
-    )
-    return [...nonRecurring, ...recurring]
+    return [...nonRecurring, ...bookedRecurring]
   }
 
   const renderMonthView = () => {

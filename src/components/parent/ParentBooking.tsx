@@ -257,6 +257,27 @@ export function ParentBooking() {
     return availableSlots.filter(slot => isSlotOnDate(slot, date))
   }
 
+  const getBookingsForDate = (date: Date) => {
+    return bookings.filter(booking => {
+      if (booking.status === 'rejected') return false
+      const slot = timeSlots.find(s => s.id === booking.slotId)
+      if (!slot) return false
+      if (slot.isRecurring) {
+        const created = new Date(booking.createdAt)
+        created.setHours(0, 0, 0, 0)
+        const targetDay = slot.dayOfWeek ?? 0
+        const diff = (targetDay - created.getDay() + 7) % 7
+        const bookedDate = new Date(created)
+        bookedDate.setDate(bookedDate.getDate() + diff)
+        return bookedDate.toDateString() === date.toDateString()
+      }
+      return new Date(slot.startTime).toDateString() === date.toDateString()
+    })
+  }
+
+  const formatTime = (d: Date) =>
+    `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
+
   const handleToggleSlot = (slotId: string) => {
     setSelectedSlots(prev => {
       const next = new Set(prev)
@@ -564,6 +585,37 @@ export function ParentBooking() {
             <CardDescription>点击选择可用时段</CardDescription>
           </CardHeader>
           <CardContent>
+            {getBookingsForDate(selectedDate).length > 0 && (
+              <div className="mb-4">
+                <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                  <CheckCircle className="w-4 h-4 text-success" />
+                  已预约课程
+                </h4>
+                <div className="space-y-2">
+                  {getBookingsForDate(selectedDate).map(booking => {
+                    const slot = timeSlots.find(s => s.id === booking.slotId)
+                    const course = courseTypes.find(c => c.id === booking.courseTypeId)
+                    if (!slot) return null
+                    return (
+                      <div key={booking.id} className="flex items-center justify-between p-3 rounded-lg bg-success/10 border border-success/20">
+                        <div>
+                          <div className="font-medium text-success">
+                            {formatTime(new Date(slot.startTime))} - {formatTime(new Date(slot.endTime))}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            <span className="mr-2">学生: {booking.studentName}</span>
+                            <span>课程: {course?.name || '未知'}</span>
+                          </div>
+                        </div>
+                        <Badge variant={booking.status === 'confirmed' ? 'success' : 'accent'}>
+                          {booking.status === 'confirmed' ? '已确认' : '待确认'}
+                        </Badge>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
             <DayView
               date={selectedDate}
               slots={getSlotsForDate(selectedDate)}
