@@ -13,7 +13,7 @@ import { getDayName, isSlotOnDate, getStatusLabel, getStatusVariant } from '@/li
 import { generateBookingUrl } from '@/lib/dataExport'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { createBookingsRemote, fetchBookingsByIdsRemote } from '@/lib/remoteBooking'
-import { navigateTo } from '@/lib/urlParams'
+import { navigateTo, getModeFromUrl } from '@/lib/urlParams'
 import { CalendarDays, Clock, User, Phone, GraduationCap, BookOpen, CheckCircle, Copy, Link, RefreshCw, CalendarCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -208,14 +208,18 @@ function BookingStatusPolling({ bookingIds, bookings: initialBookings }: { booki
         </Card>
       )}
 
-      <Button variant="outline" onClick={() => navigateTo()} className="w-full">
-        返回首页
-      </Button>
+      {getModeFromUrl() !== 'parent' && (
+        <Button variant="outline" onClick={() => navigateTo()} className="w-full">
+          返回首页
+        </Button>
+      )}
     </div>
   )
 }
 
 export function ParentBooking() {
+  const mode = getModeFromUrl()
+  const isParentOnly = mode === 'parent'
   const { timeSlots, courseTypes, teacher, teacherId, addBooking, bookings } = useApp()
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [selectedSlots, setSelectedSlots] = useState<Set<string>>(new Set())
@@ -370,9 +374,11 @@ export function ParentBooking() {
           </CardContent>
         </Card>
 
-        <Button variant="outline" onClick={() => navigateTo()} className="w-full">
-          返回首页
-        </Button>
+        {!isParentOnly && (
+          <Button variant="outline" onClick={() => navigateTo()} className="w-full">
+            返回首页
+          </Button>
+        )}
       </div>
     )
   }

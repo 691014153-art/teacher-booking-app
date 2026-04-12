@@ -122,12 +122,13 @@ function HomePage() {
         return
       }
       const base = `${window.location.origin}${import.meta.env.BASE_URL}`.replace(/\/$/, '')
-      const link = `${base}?teacher=${teacherId}`
+      const link = `${base}?teacher=${teacherId}&mode=parent`
       navigator.clipboard.writeText(link)
       alert('已同步到云端并复制短链接！家长打开即可看到空闲时间。')
       return
     }
-    const link = generateScheduleUrl(pkg)
+    let link = generateScheduleUrl(pkg)
+    if (!link.includes('mode=')) link += '&mode=parent'
     navigator.clipboard.writeText(link)
     alert('预约链接已复制！已包含当前时间安排，家长可在任意设备上打开。')
   }
@@ -453,6 +454,8 @@ function PendingBookingsBar() {
 function TeacherDashboard() {
   const [teacherTab, setTeacherTab] = useState<TeacherTab>('bookings')
   const { teacher, teacherId, timeSlots, courseTypes } = useApp()
+  const [shareLink, setShareLink] = useState('')
+  const [showShareLink, setShowShareLink] = useState(false)
 
   const copyShareLink = async () => {
     if (!teacherId || !teacher.id) return
@@ -462,21 +465,24 @@ function TeacherDashboard() {
       courseTypes,
       exportedAt: new Date().toISOString()
     }
+    const base = `${window.location.origin}${import.meta.env.BASE_URL}`.replace(/\/$/, '')
+    let link = ''
     if (isSupabaseConfigured()) {
       const { ok, error } = await upsertTeacherScheduleRemote(teacherId, pkg)
       if (!ok) {
         alert(`同步到云端失败：${error ?? '未知错误'}。请检查 Supabase 配置与表 teacher_schedules。`)
         return
       }
-      const base = `${window.location.origin}${import.meta.env.BASE_URL}`.replace(/\/$/, '')
-      const link = `${base}?teacher=${teacherId}`
-      navigator.clipboard.writeText(link)
-      alert('已同步到云端并复制短链接！家长用任意设备打开即可看到当前空闲时间。')
-      return
+      link = `${base}?teacher=${teacherId}&mode=parent`
+    } else {
+      link = generateScheduleUrl(pkg)
+      if (!link.includes('mode=')) {
+        link += `&mode=parent`
+      }
     }
-    const link = generateScheduleUrl(pkg)
+    setShareLink(link)
+    setShowShareLink(true)
     navigator.clipboard.writeText(link)
-    alert('预约链接已复制！已包含当前空闲时间与课程类型，家长用任意设备打开即可预约。')
   }
 
   return (
@@ -520,16 +526,25 @@ function TeacherDashboard() {
 
       <PendingBookingsBar />
 
-      {!isSupabaseConfigured() ? (
-        <div className="border-b bg-amber-50">
-          <div className="container max-w-6xl mx-auto px-4 py-2 text-sm text-amber-950">
-            <strong>不要只把地址栏里的短链接发给家长</strong>（只有 <code className="rounded bg-amber-100 px-1 text-xs">?teacher=</code>）——换设备看不到时间。请点「复制预约链接」发长链接，或点「下载课表文件」发微信由家长首页导入；也可配置 Supabase 用短链。
-          </div>
-        </div>
-      ) : (
-        <div className="border-b bg-sky-50/90">
-          <div className="container max-w-6xl mx-auto px-4 py-2 text-sm text-sky-950">
-            已启用云端同步：请用「复制预约链接」发家长；勿只复制地址栏里去掉 <code className="rounded bg-sky-100 px-1 text-xs">mode=manage</code> 的链接，除非已确认同步成功。
+      {showShareLink && shareLink && (
+        <div className="border-b bg-success/5">
+          <div className="container max-w-6xl mx-auto px-4 py-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-success">链接已复制，可直接粘贴发给家长：</span>
+              <Button variant="ghost" size="sm" onClick={() => setShowShareLink(false)} className="text-muted-foreground h-6 px-2">✕</Button>
+            </div>
+            <div className="flex gap-2">
+              <input
+                readOnly
+                value={shareLink}
+                className="flex-1 text-xs bg-background border rounded px-3 py-2 select-all"
+                onClick={e => (e.target as HTMLInputElement).select()}
+              />
+              <Button size="sm" onClick={() => { navigator.clipboard.writeText(shareLink); alert('已复制！') }}>
+                <Copy className="w-4 h-4 mr-1" />
+                复制
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -574,6 +589,8 @@ function TeacherDashboard() {
 function ParentView() {
   const { teacher, isFromUrl, timeSlots } = useApp()
   const scheduleInUrl = hasSchedulePayloadInUrl()
+  const mode = getModeFromUrl()
+  const isParentOnly = mode === 'parent' || isFromUrl
 
   if (!teacher.id) {
     return (
@@ -585,9 +602,6 @@ function ParentView() {
             <p className="text-muted-foreground mb-4">
               请使用教师提供的完整预约链接
             </p>
-            <Button onClick={() => navigateTo()}>
-              返回首页
-            </Button>
           </CardContent>
         </Card>
       </div>
@@ -604,9 +618,11 @@ function ParentView() {
               <CalendarCheck className="w-6 h-6 text-primary" />
               <span className="font-semibold">预约 {teacher.name} 的课程</span>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => navigateTo()}>
-              返回首页
-            </Button>
+            {!isParentOnly && (
+              <Button variant="ghost" size="sm" onClick={() => navigateTo()}>
+                返回首页
+              </Button>
+            )}
           </div>
         </div>
       </header>
@@ -662,22 +678,27 @@ function App() {
     )
   }
 
-  // 如果是从URL数据加载的（家长通过链接访问）
+  // 家长通过链接访问
   if (isFromUrl && teacher.id) {
     return <ParentView />
   }
 
-  // 如果URL中有teacherId且mode=manage，显示教师管理端
+  // 家长专用链接（mode=parent）
+  if (teacherId && mode === 'parent' && teacher.id) {
+    return <ParentView />
+  }
+
+  // 教师管理端
   if (teacherId && mode === 'manage' && teacher.id) {
     return <TeacherDashboard />
   }
 
-  // 如果URL中有teacherId但不是管理模式，显示家长预约端
+  // 有teacherId但没指定模式，默认家长端
   if (teacherId && teacher.id) {
     return <ParentView />
   }
 
-  // 否则显示首页选择
+  // 首页
   return <HomePage />
 }
 
