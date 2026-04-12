@@ -504,10 +504,6 @@ export function ParentBooking() {
 
   return (
     <div className="space-y-6">
-      {supabaseEnabled && effectiveTeacherId && (
-        <MyBookingsStatus teacherId={effectiveTeacherId} />
-      )}
-
       <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
         <CardContent className="p-6">
           <div className="flex items-center gap-4">
@@ -550,7 +546,9 @@ export function ParentBooking() {
           </CardHeader>
           <CardContent>
             <Calendar
-              timeSlots={availableSlots}
+              timeSlots={timeSlots}
+              bookings={bookings}
+              courseTypes={courseTypes}
               selectedDate={selectedDate}
               onSelectDate={setSelectedDate}
               mode="parent"
