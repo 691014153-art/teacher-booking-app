@@ -19,6 +19,8 @@ export interface Booking {
   id: string
   slotId: string
   bookedDate?: string // "YYYY-MM-DD" for recurring slots
+  bookedStartTime?: string // "HH:MM" actual booked start within slot
+  bookedEndTime?: string   // "HH:MM" actual booked end within slot
   parentName: string
   parentPhone: string
   studentName: string

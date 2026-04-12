@@ -8,6 +8,8 @@ interface BookingRow {
   teacher_id: string
   slot_id: string
   booked_date: string | null
+  booked_start_time: string | null
+  booked_end_time: string | null
   course_type_id: string | null
   parent_name: string
   parent_phone: string
@@ -23,6 +25,8 @@ function rowToBooking(row: BookingRow): Booking {
     id: row.id,
     slotId: row.slot_id,
     bookedDate: row.booked_date ?? undefined,
+    bookedStartTime: row.booked_start_time ?? undefined,
+    bookedEndTime: row.booked_end_time ?? undefined,
     parentName: row.parent_name,
     parentPhone: row.parent_phone,
     studentName: row.student_name,
@@ -39,6 +43,8 @@ function bookingToRow(teacherId: string, b: Booking) {
     teacher_id: teacherId,
     slot_id: b.slotId,
     booked_date: b.bookedDate || null,
+    booked_start_time: b.bookedStartTime || null,
+    booked_end_time: b.bookedEndTime || null,
     course_type_id: b.courseTypeId || null,
     parent_name: b.parentName,
     parent_phone: b.parentPhone,

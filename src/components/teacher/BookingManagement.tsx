@@ -47,12 +47,14 @@ export function BookingManagement() {
     })
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
-  const getSlotTime = (slotId: string, booking?: { bookedDate?: string }) => {
+  const getSlotTime = (slotId: string, booking?: { bookedDate?: string; bookedStartTime?: string; bookedEndTime?: string }) => {
     const slot = timeSlots.find(s => s.id === slotId)
     if (!slot) return '未知时段'
     const start = new Date(slot.startTime)
     const end = new Date(slot.endTime)
-    const timeStr = `${start.getHours()}:${start.getMinutes().toString().padStart(2, '0')}-${end.getHours()}:${end.getMinutes().toString().padStart(2, '0')}`
+    const timeStr = booking?.bookedStartTime && booking?.bookedEndTime
+      ? `${booking.bookedStartTime}-${booking.bookedEndTime}`
+      : `${start.getHours()}:${start.getMinutes().toString().padStart(2, '0')}-${end.getHours()}:${end.getMinutes().toString().padStart(2, '0')}`
     if (booking?.bookedDate) {
       const d = new Date(booking.bookedDate + 'T00:00:00')
       return `${d.getMonth() + 1}/${d.getDate()} ${timeStr}`

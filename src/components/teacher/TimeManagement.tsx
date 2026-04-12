@@ -288,8 +288,9 @@ export function TimeManagement() {
                         <div key={booking.id} className="flex items-center justify-between p-3 rounded-lg bg-success/10 border border-success/20">
                           <div>
                             <div className="font-medium text-success">
-                              {formatTimeDisplay(new Date(slot.startTime))} - 
-                              {formatTimeDisplay(new Date(slot.endTime))}
+                              {booking.bookedStartTime && booking.bookedEndTime
+                                ? `${booking.bookedStartTime} - ${booking.bookedEndTime}`
+                                : `${formatTimeDisplay(new Date(slot.startTime))} - ${formatTimeDisplay(new Date(slot.endTime))}`}
                             </div>
                             <div className="text-sm text-muted-foreground">
                               <span className="mr-2">学生: {booking.studentName}</span>

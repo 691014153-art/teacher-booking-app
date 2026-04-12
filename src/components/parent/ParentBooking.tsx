@@ -241,25 +241,6 @@ export function ParentBooking() {
     notes: ''
   })
 
-  const getAvailableSlots = () => {
-    const nonRecurringBookedIds = new Set(
-      bookings.filter(b => b.status !== 'rejected')
-        .filter(b => {
-          const slot = timeSlots.find(s => s.id === b.slotId)
-          return slot && !slot.isRecurring
-        })
-        .map(b => b.slotId)
-    )
-    const now = new Date()
-    return timeSlots.filter(slot => {
-      if (!slot.isRecurring && nonRecurringBookedIds.has(slot.id)) return false
-      if (slot.isRecurring && slot.dayOfWeek !== undefined) return true
-      return new Date(slot.startTime) >= now
-    })
-  }
-
-  const availableSlots = getAvailableSlots()
-
   const getBookedDateForBooking = (b: Booking, slot: TimeSlot): Date => {
     if (b.bookedDate) return new Date(b.bookedDate + 'T00:00:00')
     const created = new Date(b.createdAt)
@@ -271,20 +252,83 @@ export function ParentBooking() {
     return result
   }
 
-  const isRecurringSlotBookedOnDate = (slot: TimeSlot, date: Date) => {
-    if (!slot.isRecurring) return false
-    return bookings.some(b => {
-      if (b.slotId !== slot.id || b.status === 'rejected') return false
-      return getBookedDateForBooking(b, slot).toDateString() === date.toDateString()
-    })
+  const fmtHM = (h: number, m: number) =>
+    `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+
+  const formatTime = (d: Date) => fmtHM(d.getHours(), d.getMinutes())
+
+  interface SubSlot {
+    key: string       // composite selection key
+    slotId: string
+    startTime: string  // "HH:MM"
+    endTime: string    // "HH:MM"
+    booked: boolean
+    bookingInfo?: Booking
   }
 
-  const getSlotsForDate = (date: Date) => {
-    return availableSlots.filter(slot => {
-      if (!isSlotOnDate(slot, date)) return false
-      if (slot.isRecurring && isRecurringSlotBookedOnDate(slot, date)) return false
-      return true
+  const getSubSlotsForDate = (date: Date): SubSlot[] => {
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+    const dayOfWeek = date.getDay()
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const bookingsForDate = bookings.filter(b => {
+      if (b.status === 'rejected') return false
+      const slot = timeSlots.find(s => s.id === b.slotId)
+      if (!slot) return false
+      if (slot.isRecurring) {
+        return getBookedDateForBooking(b, slot).toDateString() === date.toDateString()
+      }
+      return new Date(slot.startTime).toDateString() === date.toDateString()
     })
+
+    const slotsOnDate = timeSlots.filter(slot => {
+      if (slot.isRecurring) return slot.dayOfWeek === dayOfWeek && date >= today
+      return new Date(slot.startTime).toDateString() === date.toDateString() && new Date(slot.startTime) >= today
+    })
+
+    const subSlots: SubSlot[] = []
+    for (const slot of slotsOnDate) {
+      const start = new Date(slot.startTime)
+      const end = new Date(slot.endTime)
+      let h = start.getHours(), m = start.getMinutes()
+      const endH = end.getHours(), endM = end.getMinutes()
+      const endMinutes = endH * 60 + endM
+
+      while (h * 60 + m < endMinutes) {
+        const nextM = m + 30
+        const nh = h + Math.floor(nextM / 60)
+        const nm = nextM % 60
+        const startStr = fmtHM(h, m)
+        const endStr = fmtHM(nh, nm)
+        const key = slot.isRecurring
+          ? `${slot.id}__${dateStr}__${startStr}`
+          : `${slot.id}__${startStr}`
+
+        const matchingBooking = bookingsForDate.find(b => {
+          if (b.slotId !== slot.id) return false
+          if (b.bookedStartTime && b.bookedEndTime) {
+            const bStartMin = parseInt(b.bookedStartTime.split(':')[0]) * 60 + parseInt(b.bookedStartTime.split(':')[1])
+            const bEndMin = parseInt(b.bookedEndTime.split(':')[0]) * 60 + parseInt(b.bookedEndTime.split(':')[1])
+            const subStartMin = h * 60 + m
+            return subStartMin >= bStartMin && subStartMin < bEndMin
+          }
+          return true
+        })
+
+        subSlots.push({
+          key,
+          slotId: slot.id,
+          startTime: startStr,
+          endTime: endStr,
+          booked: !!matchingBooking,
+          bookingInfo: matchingBooking
+        })
+        h = nh; m = nm
+      }
+    }
+
+    return subSlots.sort((a, b) => a.startTime.localeCompare(b.startTime))
   }
 
   const getBookingsForDate = (date: Date) => {
@@ -298,9 +342,6 @@ export function ParentBooking() {
       return new Date(slot.startTime).toDateString() === date.toDateString()
     })
   }
-
-  const formatTime = (d: Date) =>
-    `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
 
   const handleToggleSlot = (slotId: string) => {
     setSelectedSlots(prev => {
@@ -329,14 +370,35 @@ export function ParentBooking() {
 
     const generateId = () => crypto.randomUUID()
 
-    const createdBookings: Booking[] = Array.from(selectedSlots).map(key => {
+    const parsed = Array.from(selectedSlots).map(key => {
       const parts = key.split('__')
-      const slotId = parts[0]
-      const bookedDate = parts.length > 1 ? parts[1] : undefined
+      if (parts.length === 3) {
+        return { slotId: parts[0], bookedDate: parts[1], time: parts[2] }
+      } else if (parts.length === 2) {
+        return { slotId: parts[0], bookedDate: undefined, time: parts[1] }
+      }
+      return { slotId: parts[0], bookedDate: undefined, time: undefined }
+    })
+
+    const groups = new Map<string, { slotId: string; bookedDate?: string; times: string[] }>()
+    for (const p of parsed) {
+      const gKey = `${p.slotId}__${p.bookedDate ?? ''}`
+      if (!groups.has(gKey)) groups.set(gKey, { slotId: p.slotId, bookedDate: p.bookedDate, times: [] })
+      if (p.time) groups.get(gKey)!.times.push(p.time)
+    }
+
+    const createdBookings: Booking[] = Array.from(groups.values()).map(g => {
+      g.times.sort()
+      const startTime = g.times[0]
+      const lastStart = g.times[g.times.length - 1]
+      const [lh, lm] = lastStart.split(':').map(Number)
+      const endTime = fmtHM(lh + Math.floor((lm + 30) / 60), (lm + 30) % 60)
       return {
         id: generateId(),
-        slotId,
-        bookedDate,
+        slotId: g.slotId,
+        bookedDate: g.bookedDate,
+        bookedStartTime: startTime,
+        bookedEndTime: endTime,
         parentName: formData.parentName,
         parentPhone: formData.parentPhone,
         studentName: formData.studentName,
@@ -379,17 +441,27 @@ export function ParentBooking() {
   const getSlotTime = (key: string) => {
     const parts = key.split('__')
     const slotId = parts[0]
-    const dateStr = parts[1]
     const slot = timeSlots.find(s => s.id === slotId)
     if (!slot) return ''
+
+    if (parts.length === 3) {
+      const dateStr = parts[1]
+      const timeStart = parts[2]
+      const [sh, sm] = timeStart.split(':').map(Number)
+      const timeEnd = fmtHM(sh + Math.floor((sm + 30) / 60), (sm + 30) % 60)
+      const d = new Date(dateStr + 'T00:00:00')
+      return `${d.getMonth() + 1}月${d.getDate()}日 ${getDayName(d.getDay())} ${timeStart}-${timeEnd}`
+    }
+    if (parts.length === 2) {
+      const timeStart = parts[1]
+      const [sh, sm] = timeStart.split(':').map(Number)
+      const timeEnd = fmtHM(sh + Math.floor((sm + 30) / 60), (sm + 30) % 60)
+      const start = new Date(slot.startTime)
+      return `${start.getMonth() + 1}月${start.getDate()}日 ${getDayName(start.getDay())} ${timeStart}-${timeEnd}`
+    }
     const start = new Date(slot.startTime)
     const end = new Date(slot.endTime)
-    const timeStr = `${start.getHours()}:${start.getMinutes().toString().padStart(2, '0')}-${end.getHours()}:${end.getMinutes().toString().padStart(2, '0')}`
-    if (dateStr) {
-      const d = new Date(dateStr + 'T00:00:00')
-      return `${d.getMonth() + 1}月${d.getDate()}日 ${getDayName(d.getDay())} ${timeStr}`
-    }
-    return `${start.getMonth() + 1}月${start.getDate()}日 ${getDayName(start.getDay())} ${timeStr}`
+    return `${start.getMonth() + 1}月${start.getDate()}日 ${getDayName(start.getDay())} ${formatTime(start)}-${formatTime(end)}`
   }
 
   if (isSuccess) {
@@ -623,44 +695,82 @@ export function ParentBooking() {
             <CardDescription>点击选择可用时段</CardDescription>
           </CardHeader>
           <CardContent>
-            {getBookingsForDate(selectedDate).length > 0 && (
-              <div className="mb-4">
-                <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1">
-                  <CheckCircle className="w-4 h-4 text-success" />
-                  已预约课程
-                </h4>
-                <div className="space-y-2">
-                  {getBookingsForDate(selectedDate).map(booking => {
-                    const slot = timeSlots.find(s => s.id === booking.slotId)
-                    const course = courseTypes.find(c => c.id === booking.courseTypeId)
-                    if (!slot) return null
-                    return (
-                      <div key={booking.id} className="flex items-center justify-between p-3 rounded-lg bg-success/10 border border-success/20">
-                        <div>
-                          <div className="font-medium text-success">
-                            {formatTime(new Date(slot.startTime))} - {formatTime(new Date(slot.endTime))}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            <span className="mr-2">学生: {booking.studentName}</span>
-                            <span>课程: {course?.name || '未知'}</span>
-                          </div>
-                        </div>
-                        <Badge variant={booking.status === 'confirmed' ? 'success' : 'accent'}>
-                          {booking.status === 'confirmed' ? '已确认' : '待确认'}
-                        </Badge>
+            {(() => {
+              const subSlots = getSubSlotsForDate(selectedDate)
+              const bookedSubs = subSlots.filter(s => s.booked)
+              const availableSubs = subSlots.filter(s => !s.booked)
+
+              return (
+                <>
+                  {bookedSubs.length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                        <CheckCircle className="w-4 h-4 text-success" />
+                        已预约时段
+                      </h4>
+                      <div className="space-y-1.5">
+                        {bookedSubs.map(sub => {
+                          const course = sub.bookingInfo && courseTypes.find(c => c.id === sub.bookingInfo!.courseTypeId)
+                          return (
+                            <div key={sub.key} className="flex items-center justify-between p-2.5 rounded-lg bg-success/10 border border-success/20">
+                              <div>
+                                <span className="font-medium text-success">{sub.startTime} - {sub.endTime}</span>
+                                {sub.bookingInfo && (
+                                  <span className="text-xs text-muted-foreground ml-2">
+                                    {sub.bookingInfo.studentName} · {course?.name || ''}
+                                  </span>
+                                )}
+                              </div>
+                              <Badge variant={sub.bookingInfo?.status === 'confirmed' ? 'success' : 'accent'} className="text-[10px]">
+                                {sub.bookingInfo?.status === 'confirmed' ? '已确认' : '待确认'}
+                              </Badge>
+                            </div>
+                          )
+                        })}
                       </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-            <DayView
-              date={selectedDate}
-              slots={getSlotsForDate(selectedDate)}
-              selectedSlots={selectedSlots}
-              onToggleSlot={handleToggleSlot}
-              mode="parent"
-            />
+                    </div>
+                  )}
+
+                  {availableSubs.length > 0 ? (
+                    <div>
+                      <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                        <Clock className="w-4 h-4" />
+                        可选时段（每段30分钟，可多选）
+                      </h4>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {availableSubs.map(sub => {
+                          const isSelected = selectedSlots.has(sub.key)
+                          return (
+                            <div
+                              key={sub.key}
+                              className={cn(
+                                "flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-all hover:border-primary/50",
+                                isSelected && "bg-primary/10 border-primary"
+                              )}
+                              onClick={() => handleToggleSlot(sub.key)}
+                            >
+                              <span className="text-sm font-medium">{sub.startTime} - {sub.endTime}</span>
+                              <div className={cn(
+                                "w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all",
+                                isSelected && "bg-primary border-primary"
+                              )}>
+                                {isSelected && (
+                                  <svg className="w-2.5 h-2.5 text-primary-foreground" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ) : subSlots.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-4 text-center">暂无空闲时段</p>
+                  ) : null}
+                </>
+              )
+            })()}
           </CardContent>
         </Card>
       </div>

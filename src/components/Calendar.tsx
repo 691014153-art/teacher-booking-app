@@ -126,46 +126,62 @@ export function Calendar({
             {day}
           </div>
           <div className="space-y-0.5 overflow-hidden">
-            {slots.slice(0, 3).map(slot => {
-              const startTime = new Date(slot.startTime)
-              const endTime = new Date(slot.endTime)
-              const startStr = `${startTime.getHours().toString().padStart(2, '0')}:${startTime.getMinutes().toString().padStart(2, '0')}`
-              const endStr = `${endTime.getHours().toString().padStart(2, '0')}:${endTime.getMinutes().toString().padStart(2, '0')}`
-              
-              const booking = bookings?.find(b => {
-                if (b.slotId !== slot.id || b.status === 'rejected') return false
-                if (slot.isRecurring) {
-                  return getBookedDate(b, slot).toDateString() === date.toDateString()
-                }
-                return true
+            {(() => {
+              type CellItem = { key: string; time: string; label: string; type: 'booked' | 'available' | 'recurring' }
+              const items: CellItem[] = []
+
+              const dayBookings = (bookings ?? []).filter(b => {
+                if (b.status === 'rejected') return false
+                const slot = timeSlots.find(s => s.id === b.slotId)
+                if (!slot) return false
+                if (slot.isRecurring) return getBookedDate(b, slot).toDateString() === date.toDateString()
+                return new Date(slot.startTime).toDateString() === date.toDateString()
               })
-              const course = booking && courseTypes?.find(c => c.id === booking.courseTypeId)
-              const isBooked = !!booking
+
+              for (const b of dayBookings) {
+                const slot = timeSlots.find(s => s.id === b.slotId)
+                if (!slot) continue
+                const course = courseTypes?.find(c => c.id === b.courseTypeId)
+                const time = b.bookedStartTime && b.bookedEndTime
+                  ? `${b.bookedStartTime}-${b.bookedEndTime}`
+                  : `${new Date(slot.startTime).getHours().toString().padStart(2, '0')}:${new Date(slot.startTime).getMinutes().toString().padStart(2, '0')}-${new Date(slot.endTime).getHours().toString().padStart(2, '0')}:${new Date(slot.endTime).getMinutes().toString().padStart(2, '0')}`
+                items.push({ key: b.id, time, label: course?.name || b.studentName, type: 'booked' })
+              }
+
+              for (const slot of slots) {
+                const hasBooking = dayBookings.some(b => b.slotId === slot.id)
+                if (hasBooking && mode === 'teacher') continue
+                if (!hasBooking) {
+                  const st = new Date(slot.startTime)
+                  const en = new Date(slot.endTime)
+                  const time = `${st.getHours().toString().padStart(2, '0')}:${st.getMinutes().toString().padStart(2, '0')}-${en.getHours().toString().padStart(2, '0')}:${en.getMinutes().toString().padStart(2, '0')}`
+                  items.push({ key: slot.id, time, label: slot.isRecurring ? '↻' : '', type: slot.isRecurring ? 'recurring' : 'available' })
+                }
+              }
+
+              items.sort((a, b) => a.time.localeCompare(b.time))
 
               return (
-                <div
-                  key={slot.id}
-                  className={cn(
-                    "text-[10px] px-1.5 py-0.5 rounded truncate",
-                    isBooked
-                      ? "bg-success/15 text-success border border-success/30"
-                      : slot.isRecurring 
-                        ? "bg-accent/20 text-accent border border-accent/30" 
-                        : "bg-primary/10 text-primary"
+                <>
+                  {items.slice(0, 3).map(item => (
+                    <div
+                      key={item.key}
+                      className={cn(
+                        "text-[10px] px-1.5 py-0.5 rounded truncate",
+                        item.type === 'booked' && "bg-success/15 text-success border border-success/30",
+                        item.type === 'recurring' && "bg-accent/20 text-accent border border-accent/30",
+                        item.type === 'available' && "bg-primary/10 text-primary"
+                      )}
+                    >
+                      {item.type === 'booked' ? `${item.time} ${item.label}` : `${item.time}${item.label ? ' ' + item.label : ''}`}
+                    </div>
+                  ))}
+                  {items.length > 3 && (
+                    <div className="text-[10px] text-muted-foreground px-1">+{items.length - 3} 更多</div>
                   )}
-                >
-                  {isBooked
-                    ? `${course?.name || '已预约'} ${booking.studentName}`
-                    : `${startStr}-${endStr}${slot.isRecurring ? " ↻" : ""}`
-                  }
-                </div>
+                </>
               )
-            })}
-            {slots.length > 3 && (
-              <div className="text-[10px] text-muted-foreground px-1">
-                +{slots.length - 3} 更多
-              </div>
-            )}
+            })()}
           </div>
         </div>
       )
