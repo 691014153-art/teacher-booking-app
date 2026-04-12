@@ -55,17 +55,12 @@ export function Calendar({
     today.setHours(0, 0, 0, 0)
     
     return timeSlots.filter(slot => {
-      const slotDate = new Date(slot.startTime)
-      
       if (slot.isRecurring) {
-        if (slot.dayOfWeek !== dayOfWeek || date < today) return false
-        if (mode === 'teacher') {
-          const hasBooking = bookings?.some(b => b.slotId === slot.id && b.status !== 'rejected')
-          return !!hasBooking
-        }
-        return true
+        if (mode === 'teacher') return false
+        return slot.dayOfWeek === dayOfWeek && date >= today
       }
       
+      const slotDate = new Date(slot.startTime)
       return slotDate.toDateString() === date.toDateString()
     })
   }
