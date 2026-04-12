@@ -77,7 +77,16 @@ export function Calendar({
       })
     })
 
-    return [...nonRecurring, ...bookedRecurring]
+    if (mode === 'teacher') {
+      return [...nonRecurring, ...bookedRecurring]
+    }
+
+    const bookedRecurringIds = new Set(bookedRecurring.map(s => s.id))
+    const availableRecurring = timeSlots.filter(slot =>
+      slot.isRecurring && slot.dayOfWeek === dayOfWeek && date >= today
+      && !bookedRecurringIds.has(slot.id)
+    )
+    return [...nonRecurring, ...bookedRecurring, ...availableRecurring]
   }
 
   const renderMonthView = () => {
