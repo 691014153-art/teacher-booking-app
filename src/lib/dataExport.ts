@@ -120,7 +120,8 @@ export function generateScheduleUrl(data: DataPackage): string {
   if (encoded) {
     p.set('s', encoded)
   }
-  return `${window.location.origin}?${p.toString()}`
+  const base = `${window.location.origin}${import.meta.env.BASE_URL}`.replace(/\/$/, '')
+  return `${base}?${p.toString()}`
 }
 
 // 生成预约分享链接（预约数据放在 ?b=）
@@ -137,7 +138,8 @@ export function generateBookingUrl(teacherId: string, bookings: Booking[]): stri
   if (encoded) {
     p.set('b', encoded)
   }
-  return `${window.location.origin}?${p.toString()}`
+  const base = `${window.location.origin}${import.meta.env.BASE_URL}`.replace(/\/$/, '')
+  return `${base}?${p.toString()}`
 }
 
 // 计算数据大小

@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { useApp, getAllTeachers, createNewTeacher, deleteTeacher, exportTeacherData } from '@/context/AppContext'
 import { generateScheduleUrl, hasSchedulePayloadInUrl, type DataPackage } from '@/lib/dataExport'
-import { getModeFromUrl } from '@/lib/urlParams'
+import { getModeFromUrl, navigateTo } from '@/lib/urlParams'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { upsertTeacherScheduleRemote } from '@/lib/remoteSchedule'
 import { storeScheduleFileImportFromText, downloadSchedulePackageFile } from '@/lib/scheduleFile'
@@ -56,7 +56,7 @@ function ScheduleFileImportControl(props: {
             alert('这份课表不是当前页面这位老师的，请向老师索取对应文件。')
             return
           }
-          window.location.href = `${window.location.origin}?teacher=${r.teacherId}`
+          navigateTo(`teacher=${r.teacherId}`)
         }}
       />
       <Button type="button" variant="outline" size="sm" onClick={() => ref.current?.click()}>
@@ -88,16 +88,16 @@ function HomePage() {
     }
     const teacher = createNewTeacher(newTeacherName.trim())
     localStorage.removeItem('pendingTeacherName')
-    window.location.href = `${window.location.origin}?teacher=${teacher.id}&mode=manage`
+    navigateTo(`teacher=${teacher.id}&mode=manage`)
   }
 
   const handleSelectTeacherForManage = (teacherId: string) => {
-    window.location.href = `${window.location.origin}?teacher=${teacherId}&mode=manage`
+    navigateTo(`teacher=${teacherId}&mode=manage`)
   }
 
   const handleSelectTeacherForBooking = (teacherId: string) => {
     if (isSupabaseConfigured()) {
-      window.location.href = `${window.location.origin}?teacher=${teacherId}`
+      navigateTo(`teacher=${teacherId}`)
       return
     }
     const pkg = exportTeacherData(teacherId)
@@ -105,7 +105,7 @@ function HomePage() {
       window.location.href = generateScheduleUrl(pkg)
       return
     }
-    window.location.href = `${window.location.origin}?teacher=${teacherId}`
+    navigateTo(`teacher=${teacherId}`)
   }
 
   const copyTeacherLink = async (teacherId: string, e: React.MouseEvent) => {
@@ -121,7 +121,8 @@ function HomePage() {
         alert(`同步到云端失败：${error ?? '未知错误'}。请检查 .env 中的 Supabase 配置与数据库表是否已创建。`)
         return
       }
-      const link = `${window.location.origin}?teacher=${teacherId}`
+      const base = `${window.location.origin}${import.meta.env.BASE_URL}`.replace(/\/$/, '')
+      const link = `${base}?teacher=${teacherId}`
       navigator.clipboard.writeText(link)
       alert('已同步到云端并复制短链接！家长打开即可看到空闲时间。')
       return
@@ -467,7 +468,8 @@ function TeacherDashboard() {
         alert(`同步到云端失败：${error ?? '未知错误'}。请检查 Supabase 配置与表 teacher_schedules。`)
         return
       }
-      const link = `${window.location.origin}?teacher=${teacherId}`
+      const base = `${window.location.origin}${import.meta.env.BASE_URL}`.replace(/\/$/, '')
+      const link = `${base}?teacher=${teacherId}`
       navigator.clipboard.writeText(link)
       alert('已同步到云端并复制短链接！家长用任意设备打开即可看到当前空闲时间。')
       return
@@ -508,7 +510,7 @@ function TeacherDashboard() {
                 <Copy className="w-4 h-4 mr-1" />
                 复制预约链接
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => window.location.href = window.location.origin}>
+              <Button variant="ghost" size="sm" onClick={() => navigateTo()}>
                 返回首页
               </Button>
             </div>
@@ -583,7 +585,7 @@ function ParentView() {
             <p className="text-muted-foreground mb-4">
               请使用教师提供的完整预约链接
             </p>
-            <Button onClick={() => window.location.href = window.location.origin}>
+            <Button onClick={() => navigateTo()}>
               返回首页
             </Button>
           </CardContent>
@@ -602,7 +604,7 @@ function ParentView() {
               <CalendarCheck className="w-6 h-6 text-primary" />
               <span className="font-semibold">预约 {teacher.name} 的课程</span>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => window.location.href = window.location.origin}>
+            <Button variant="ghost" size="sm" onClick={() => navigateTo()}>
               返回首页
             </Button>
           </div>
