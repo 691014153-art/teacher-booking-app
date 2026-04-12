@@ -171,6 +171,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           if (bookingData && bookingData.teacherId === tid) {
             setPendingBookings(bookingData)
           }
+          if (!cancelled && isSupabaseConfigured()) {
+            const remoteBookings = await fetchBookingsRemote(tid)
+            if (!cancelled && remoteBookings.length > 0) setBookings(remoteBookings)
+          }
           if (!cancelled) setIsLoading(false)
           return
         }
@@ -182,6 +186,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const bookingData = getBookingFromUrl()
           if (bookingData && bookingData.teacherId === tid) {
             setPendingBookings(bookingData)
+          }
+          if (!cancelled && isSupabaseConfigured()) {
+            const remoteBookings = await fetchBookingsRemote(tid)
+            if (!cancelled && remoteBookings.length > 0) setBookings(remoteBookings)
           }
           if (!cancelled) setIsLoading(false)
           return
@@ -196,6 +204,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             if (bookingData && bookingData.teacherId === tid) {
               setPendingBookings(bookingData)
             }
+            const remoteBookings = await fetchBookingsRemote(tid)
+            if (!cancelled && remoteBookings.length > 0) setBookings(remoteBookings)
             if (!cancelled) setIsLoading(false)
             return
           }

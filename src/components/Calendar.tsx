@@ -57,12 +57,15 @@ export function Calendar({
     return timeSlots.filter(slot => {
       const slotDate = new Date(slot.startTime)
       
-      // 循环时段：检查星期是否匹配，且日期不早于今天
       if (slot.isRecurring) {
-        return slot.dayOfWeek === dayOfWeek && date >= today
+        if (slot.dayOfWeek !== dayOfWeek || date < today) return false
+        if (mode === 'teacher') {
+          const hasBooking = bookings?.some(b => b.slotId === slot.id && b.status !== 'rejected')
+          return !!hasBooking
+        }
+        return true
       }
       
-      // 单次时段：检查日期是否匹配
       return slotDate.toDateString() === date.toDateString()
     })
   }
