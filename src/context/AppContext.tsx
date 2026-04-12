@@ -154,7 +154,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             if (pkg) void upsertTeacherScheduleRemote(tid, pkg)
             const remoteBookings = await fetchBookingsRemote(tid)
             if (!cancelled && remoteBookings.length > 0) {
-              setBookings(remoteBookings)
+              setBookings(autoCompleteBookings(remoteBookings))
             }
           }
           const bookingData = getBookingFromUrl()
@@ -174,7 +174,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           }
           if (!cancelled && isSupabaseConfigured()) {
             const remoteBookings = await fetchBookingsRemote(tid)
-            if (!cancelled && remoteBookings.length > 0) setBookings(remoteBookings)
+            if (!cancelled && remoteBookings.length > 0) setBookings(autoCompleteBookings(remoteBookings))
           }
           if (!cancelled) setIsLoading(false)
           return
@@ -190,7 +190,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           }
           if (!cancelled && isSupabaseConfigured()) {
             const remoteBookings = await fetchBookingsRemote(tid)
-            if (!cancelled && remoteBookings.length > 0) setBookings(remoteBookings)
+            if (!cancelled && remoteBookings.length > 0) setBookings(autoCompleteBookings(remoteBookings))
           }
           if (!cancelled) setIsLoading(false)
           return
@@ -206,7 +206,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
               setPendingBookings(bookingData)
             }
             const remoteBookings = await fetchBookingsRemote(tid)
-            if (!cancelled && remoteBookings.length > 0) setBookings(remoteBookings)
+            if (!cancelled && remoteBookings.length > 0) setBookings(autoCompleteBookings(remoteBookings))
             if (!cancelled) setIsLoading(false)
             return
           }
@@ -405,11 +405,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
     stripImportedBookingFromUrl()
   }
 
-  // 从 Supabase 刷新预约列表（教师管理后台调用）
+  const autoCompleteBookings = (list: Booking[]): Booking[] => {
+    const now = Date.now()
+    let changed = false
+    const updated = list.map(b => {
+      if (b.status !== 'confirmed') return b
+      const bDate = b.bookedDate
+      const bStart = b.bookedStartTime
+      if (!bDate || !bStart) return b
+      const startTime = new Date(`${bDate}T${bStart}:00`).getTime()
+      if (startTime <= now) {
+        changed = true
+        if (isSupabaseConfigured()) void updateBookingStatusRemote(b.id, 'completed')
+        return { ...b, status: 'completed' as const }
+      }
+      return b
+    })
+    return changed ? updated : list
+  }
+
   const refreshBookings = async () => {
     if (!isSupabaseConfigured() || !teacherId) return
     const remote = await fetchBookingsRemote(teacherId)
-    setBookings(remote)
+    setBookings(autoCompleteBookings(remote))
   }
 
   return (

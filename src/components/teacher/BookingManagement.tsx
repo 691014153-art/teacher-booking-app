@@ -262,27 +262,7 @@ export function BookingManagement() {
                           </Button>
                         </>
                       )}
-                      {booking.status === 'confirmed' && (() => {
-                        const bDate = booking.bookedDate
-                        const bEnd = booking.bookedEndTime
-                        if (bDate && bEnd) {
-                          const endTime = new Date(`${bDate}T${bEnd}:00`)
-                          if (endTime.getTime() <= Date.now()) {
-                            return (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => updateBookingStatus(booking.id, 'completed')}
-                                className="flex items-center gap-1 text-primary"
-                              >
-                                <CheckCircle2 className="w-4 h-4" />
-                                标记完成
-                              </Button>
-                            )
-                          }
-                        }
-                        return null
-                      })()}
+                      
                       {booking.status !== 'rejected' && booking.status !== 'completed' && (
                         <Button
                           size="sm"
