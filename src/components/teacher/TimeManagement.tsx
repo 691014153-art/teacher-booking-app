@@ -151,15 +151,15 @@ export function TimeManagement() {
     return [...nonRecurring, ...bookedRecurring]
   }
 
-  // 获取某日期的已确认预约
   const getBookingsForSelectedDate = () => {
     return bookings.filter(booking => {
+      if (booking.status === 'rejected') return false
       const slot = timeSlots.find(s => s.id === booking.slotId)
       if (!slot) return false
       if (slot.isRecurring) {
-        return getBookedDate(booking, slot).toDateString() === selectedDate.toDateString() && booking.status === 'confirmed'
+        return getBookedDate(booking, slot).toDateString() === selectedDate.toDateString()
       }
-      return new Date(slot.startTime).toDateString() === selectedDate.toDateString() && booking.status === 'confirmed'
+      return new Date(slot.startTime).toDateString() === selectedDate.toDateString()
     })
   }
 
@@ -168,9 +168,18 @@ export function TimeManagement() {
     return timeSlots.filter(slot => slot.isRecurring)
   }
 
-  // 获取已预约的时间段ID集合
-  const getBookedSlotIds = () => {
-    return new Set(bookings.filter(b => b.status === 'confirmed').map(b => b.slotId))
+  const getBookedSlotIdsForDate = (date: Date) => {
+    return new Set(
+      bookings.filter(b => {
+        if (b.status === 'rejected') return false
+        const slot = timeSlots.find(s => s.id === b.slotId)
+        if (!slot) return false
+        if (slot.isRecurring) {
+          return getBookedDate(b, slot).toDateString() === date.toDateString()
+        }
+        return new Date(slot.startTime).toDateString() === date.toDateString()
+      }).map(b => b.slotId)
+    )
   }
 
   // 生成时间选项（包含半小时）
@@ -287,7 +296,9 @@ export function TimeManagement() {
                               <span>课程: {course?.name || '未知'}</span>
                             </div>
                           </div>
-                          <Badge variant="success">已确认</Badge>
+                          <Badge variant={booking.status === 'confirmed' ? 'success' : 'accent'}>
+                            {booking.status === 'confirmed' ? '已确认' : '待确认'}
+                          </Badge>
                         </div>
                       )
                     })}
@@ -302,12 +313,12 @@ export function TimeManagement() {
               </h4>
               <DayView
                 date={selectedDate}
-                slots={getSlotsForSelectedDate().filter(s => !getBookedSlotIds().has(s.id))}
+                slots={getSlotsForSelectedDate().filter(s => !getBookedSlotIdsForDate(selectedDate).has(s.id))}
                 mode="teacher"
               />
-              {getSlotsForSelectedDate().filter(s => !getBookedSlotIds().has(s.id)).length > 0 && (
+              {getSlotsForSelectedDate().filter(s => !getBookedSlotIdsForDate(selectedDate).has(s.id)).length > 0 && (
                 <div className="mt-4 pt-4 border-t space-y-2">
-                  {getSlotsForSelectedDate().filter(s => !getBookedSlotIds().has(s.id)).map(slot => (
+                  {getSlotsForSelectedDate().filter(s => !getBookedSlotIdsForDate(selectedDate).has(s.id)).map(slot => (
                     <div key={slot.id} className="flex items-center justify-between p-2 rounded-lg bg-secondary/50">
                       <div className="text-sm">
                         <span className="font-medium">

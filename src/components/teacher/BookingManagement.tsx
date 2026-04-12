@@ -47,12 +47,17 @@ export function BookingManagement() {
     })
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
-  const getSlotTime = (slotId: string) => {
+  const getSlotTime = (slotId: string, booking?: { bookedDate?: string }) => {
     const slot = timeSlots.find(s => s.id === slotId)
     if (!slot) return '未知时段'
     const start = new Date(slot.startTime)
     const end = new Date(slot.endTime)
-    return `${start.getMonth() + 1}/${start.getDate()} ${start.getHours()}:${start.getMinutes().toString().padStart(2, '0')}-${end.getHours()}:${end.getMinutes().toString().padStart(2, '0')}`
+    const timeStr = `${start.getHours()}:${start.getMinutes().toString().padStart(2, '0')}-${end.getHours()}:${end.getMinutes().toString().padStart(2, '0')}`
+    if (booking?.bookedDate) {
+      const d = new Date(booking.bookedDate + 'T00:00:00')
+      return `${d.getMonth() + 1}/${d.getDate()} ${timeStr}`
+    }
+    return `${start.getMonth() + 1}/${start.getDate()} ${timeStr}`
   }
 
   const getCourseName = (courseId: string) => {
@@ -188,7 +193,7 @@ export function BookingManagement() {
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4 text-muted-foreground" />
                       <div>
-                        <div className="text-sm font-medium">{getSlotTime(booking.slotId)}</div>
+                        <div className="text-sm font-medium">{getSlotTime(booking.slotId, booking)}</div>
                         <div className="text-xs text-muted-foreground">
                           {formatDateTime(booking.createdAt)} 提交
                         </div>
