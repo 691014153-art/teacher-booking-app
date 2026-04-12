@@ -652,6 +652,7 @@ export function ParentBooking() {
           </CardContent>
         </Card>
       )}
+      <div className="text-center text-[10px] text-muted-foreground/50 mt-4">v2.1</div>
     </div>
   )
 }
