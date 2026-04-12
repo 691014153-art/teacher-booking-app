@@ -7,10 +7,10 @@ import { useApp } from '@/context/AppContext'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { getStatusLabel, getStatusVariant } from '@/lib/data'
 import { formatDateTime } from '@/lib/utils'
-import { Bell, Check, X, Clock, User, Phone, BookOpen, MessageSquare, RefreshCw, Trash2 } from 'lucide-react'
+import { Bell, Check, X, Clock, User, Phone, BookOpen, MessageSquare, RefreshCw, Trash2, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-type FilterStatus = 'all' | 'pending' | 'confirmed' | 'rejected'
+type FilterStatus = 'all' | 'pending' | 'confirmed' | 'rejected' | 'completed'
 
 export function BookingManagement() {
   const { bookings, timeSlots, courseTypes, updateBookingStatus, cancelBooking, refreshBookings } = useApp()
@@ -122,12 +122,14 @@ export function BookingManagement() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-muted">
-                <Clock className="w-5 h-5 text-muted-foreground" />
+              <div className="p-2 rounded-lg bg-secondary">
+                <CheckCircle2 className="w-5 h-5 text-muted-foreground" />
               </div>
               <div>
-                <div className="text-2xl font-bold">{bookings.length}</div>
-                <div className="text-xs text-muted-foreground">总预约</div>
+                <div className="text-2xl font-bold">
+                  {bookings.filter(b => b.status === 'completed').length}
+                </div>
+                <div className="text-xs text-muted-foreground">已完成</div>
               </div>
             </div>
           </CardContent>
@@ -137,7 +139,7 @@ export function BookingManagement() {
       {/* 筛选和搜索 */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex gap-2 flex-wrap items-center">
-          {(['all', 'pending', 'confirmed', 'rejected'] as FilterStatus[]).map(status => (
+          {(['all', 'pending', 'confirmed', 'completed', 'rejected'] as FilterStatus[]).map(status => (
             <Button
               key={status}
               variant={filterStatus === status ? 'default' : 'outline'}
@@ -260,7 +262,28 @@ export function BookingManagement() {
                           </Button>
                         </>
                       )}
-                      {booking.status !== 'rejected' && (
+                      {booking.status === 'confirmed' && (() => {
+                        const bDate = booking.bookedDate
+                        const bEnd = booking.bookedEndTime
+                        if (bDate && bEnd) {
+                          const endTime = new Date(`${bDate}T${bEnd}:00`)
+                          if (endTime.getTime() <= Date.now()) {
+                            return (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updateBookingStatus(booking.id, 'completed')}
+                                className="flex items-center gap-1 text-primary"
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                                标记完成
+                              </Button>
+                            )
+                          }
+                        }
+                        return null
+                      })()}
+                      {booking.status !== 'rejected' && booking.status !== 'completed' && (
                         <Button
                           size="sm"
                           variant="outline"

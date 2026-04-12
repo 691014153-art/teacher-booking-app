@@ -49,17 +49,18 @@ export function getStatusLabel(status: Booking['status']): string {
   const labels = {
     pending: '待确认',
     confirmed: '已确认',
-    rejected: '已拒绝'
+    rejected: '已拒绝',
+    completed: '已完成'
   }
   return labels[status]
 }
 
-// 获取预约的状态颜色
-export function getStatusVariant(status: Booking['status']): 'default' | 'success' | 'destructive' {
+export function getStatusVariant(status: Booking['status']): 'default' | 'success' | 'destructive' | 'secondary' {
   const variants = {
     pending: 'default' as const,
     confirmed: 'success' as const,
-    rejected: 'destructive' as const
+    rejected: 'destructive' as const,
+    completed: 'secondary' as const
   }
   return variants[status]
 }

@@ -25,7 +25,7 @@ export interface Booking {
   parentPhone: string
   studentName: string
   courseTypeId: string
-  status: 'pending' | 'confirmed' | 'rejected'
+  status: 'pending' | 'confirmed' | 'rejected' | 'completed'
   createdAt: Date
   notes?: string
 }
