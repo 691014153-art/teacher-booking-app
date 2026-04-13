@@ -49,16 +49,20 @@ export function BookingManagement() {
 
   const getSlotTime = (slotId: string, booking?: { bookedDate?: string; bookedStartTime?: string; bookedEndTime?: string }) => {
     const slot = timeSlots.find(s => s.id === slotId)
+
+    if (booking?.bookedStartTime && booking?.bookedEndTime) {
+      const timeStr = `${booking.bookedStartTime}-${booking.bookedEndTime}`
+      if (booking.bookedDate) {
+        const d = new Date(booking.bookedDate + 'T00:00:00')
+        return `${d.getMonth() + 1}/${d.getDate()} ${timeStr}`
+      }
+      return timeStr
+    }
+
     if (!slot) return '未知时段'
     const start = new Date(slot.startTime)
     const end = new Date(slot.endTime)
-    const timeStr = booking?.bookedStartTime && booking?.bookedEndTime
-      ? `${booking.bookedStartTime}-${booking.bookedEndTime}`
-      : `${start.getHours()}:${start.getMinutes().toString().padStart(2, '0')}-${end.getHours()}:${end.getMinutes().toString().padStart(2, '0')}`
-    if (booking?.bookedDate) {
-      const d = new Date(booking.bookedDate + 'T00:00:00')
-      return `${d.getMonth() + 1}/${d.getDate()} ${timeStr}`
-    }
+    const timeStr = `${start.getHours()}:${start.getMinutes().toString().padStart(2, '0')}-${end.getHours()}:${end.getMinutes().toString().padStart(2, '0')}`
     return `${start.getMonth() + 1}/${start.getDate()} ${timeStr}`
   }
 
@@ -261,6 +265,18 @@ export function BookingManagement() {
                             拒绝
                           </Button>
                         </>
+                      )}
+
+                      {booking.status === 'confirmed' && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => updateBookingStatus(booking.id, 'completed')}
+                          className="flex items-center gap-1"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                          已完成
+                        </Button>
                       )}
                       
                       {booking.status !== 'rejected' && booking.status !== 'completed' && (
